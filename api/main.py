@@ -8,7 +8,7 @@ app = FastAPI()
 r = redis.Redis(
     host=os.getenv("REDIS_HOST", "redis"),
     port=int(os.getenv("REDIS_PORT", 6379)),
-    password=os.getenv("REDIS_PASSWORD", None),
+    ##password=os.getenv("REDIS_PASSWORD", None),
     decode_responses=True
 )
 

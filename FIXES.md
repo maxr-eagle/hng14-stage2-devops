@@ -157,3 +157,8 @@ Problem: No `engines` field. The container could be built with any Node.js versi
 File: frontend/package.json
 Problem: The CI pipeline lint stage runs ESLint against `app.js` but ESLint is not listed in `devDependencies`. The lint stage will fail immediately on a clean install.
 *Fix: Added `"eslint": "^8.57.0"` to `devDependencies`.
+
+# Errors after running the application
+File: api/Dockerfile  
+Issue: Installed dependencies in builder stage but did not copy them to final image  
+Fix: Added COPY --from=builder /install /usr/local to include installed packages
