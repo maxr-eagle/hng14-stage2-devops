@@ -21,9 +21,9 @@ jobs:
         run: pip install flake8
 
       - name: Run Python lint
-        run: flake8 api workert
+        run: flake8 api worker
      
-      #Node linting
+      # Node linting
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -38,7 +38,7 @@ jobs:
         run: |
           npx eslint . || echo "ESlint not configured yet"
 
-      #Docker linting    
+      # Docker linting    
       - name: Lint Dockerfiles
         uses: hadolint/hadolint-action@v3.1.0
         with:
