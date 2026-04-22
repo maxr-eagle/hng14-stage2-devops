@@ -40,11 +40,17 @@ jobs:
           npx eslint . || echo "ESlint not configured yet"
 
       # Docker linting    
-      - name: Lint Dockerfiles
+      - name: Lint API Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile: |
-            api/Dockerfile
-            worker/Dockerfile
-            frontend/Dockerfile 
+          dockerfile: api/Dockerfile
 
+      - name: Lint Worker Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: worker/Dockerfile
+
+      - name: Lint Frontend Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: frontend/Dockerfile
