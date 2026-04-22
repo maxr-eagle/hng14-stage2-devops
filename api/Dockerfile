@@ -14,7 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
+    apt-get install -y --no-install-recommends curl=8.14.1-2+deb13u2 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /install /usr/local    
