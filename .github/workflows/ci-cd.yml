@@ -21,7 +21,8 @@ jobs:
         run: pip install flake8
 
       - name: Run Python lint
-        run: flake8 api worker
+        run: |
+          flake8 api worker
      
       # Node linting
       - name: Set up Node
