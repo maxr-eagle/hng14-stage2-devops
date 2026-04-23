@@ -318,7 +318,7 @@ jobs:
           docker compose up --build -d --no-deps api
           sleep 10
           docker compose logs api
-          docker inspect --format='{{json .State.Health}}' api
+          docker compose ps api 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | head -1 || echo "none"
           docker compose up --build -d --no-deps worker
           docker compose up --build -d --no-deps frontend
 
@@ -522,9 +522,7 @@ jobs:
 
             # Poll health check on new container
             while [ $ELAPSED -lt $TIMEOUT ]; do
-              HEALTH=$(docker inspect \
-                --format='{{.State.Health.Status}}' \
-                $NEW_CONTAINER 2>/dev/null || echo "unknown")
+              HEALTH=$(docker compose ps $SERVICE 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | tail -1 || echo "unknown")
 
               echo "$SERVICE new container health: $HEALTH (${ELAPSED}s)"
 
