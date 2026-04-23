@@ -28,8 +28,8 @@ services:
       dockerfile: Dockerfile
     container_name: api
     environment:
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     networks:
       - internal
@@ -43,7 +43,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
     deploy:
       resources:
         limits:
@@ -57,8 +57,8 @@ services:
       dockerfile: Dockerfile
     container_name: worker
     environment:
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     networks:
       - internal
