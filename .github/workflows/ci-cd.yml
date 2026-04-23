@@ -360,6 +360,10 @@ jobs:
             docker compose logs api
             echo "--- API health check logs ---"
             docker inspect --format='{{json .State.Health}}' api
+            echo "--- Frontend logs ---"
+            docker compose logs frontend
+            echo "--- Frontend health check logs ---"
+            docker inspect --format='{{json .State.Health}}' frontend
             echo "--- Redis logs ---"
             docker compose logs redis
             echo "--- Worker logs ---"
