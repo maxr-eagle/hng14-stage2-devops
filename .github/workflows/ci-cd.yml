@@ -325,23 +325,50 @@ jobs:
       - name: Wait for services to be healthy
         run: |
           echo "Waiting for all services to be healthy..."
+
+          PROJECT=$(docker compose ps --format json | python3 -c "
+          import sys, json
+          data = sys.stdin.read().strip()
+          lines = [l for l in data.splitlines() if l.strip()]
+          first = json.loads(lines[0])
+          name = first['Name']
+          parts = name.rsplit('-', 2)
+          print(parts[0])
+          ")
+          echo "Project name: $PROJECT"
+
+          API_CONTAINER="${PROJECT}-api-1"
+          WORKER_CONTAINER="${PROJECT}-worker-1"
+          FRONTEND_CONTAINER="${PROJECT}-frontend-1"
+          REDIS_CONTAINER="${PROJECT}-redis-1"
+
+          echo "Watching containers:"
+          echo "  $API_CONTAINER"
+          echo "  $WORKER_CONTAINER"
+          echo "  $FRONTEND_CONTAINER"
+          echo "  $REDIS_CONTAINER"
+
           TIMEOUT=120
           INTERVAL=5
           ELAPSED=0
 
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            API=$(docker compose ps api 2>/dev/null | awk '/api/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
-            WORKER=$(docker compose ps worker 2>/dev/null | awk '/worker/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
-            FRONTEND=$(docker compose ps frontend 2>/dev/null | awk '/frontend/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
-            REDIS=$(docker compose ps redis 2>/dev/null | awk '/redis/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
+            API=$(docker inspect --format='{{.State.Health.Status}}' $API_CONTAINER 2>/dev/null || echo "none")
+            WORKER=$(docker inspect --format='{{.State.Health.Status}}' $WORKER_CONTAINER 2>/dev/null || echo "none")
+            FRONTEND=$(docker inspect --format='{{.State.Health.Status}}' $FRONTEND_CONTAINER 2>/dev/null || echo "none")
+            REDIS=$(docker inspect --format='{{.State.Health.Status}}' $REDIS_CONTAINER 2>/dev/null || echo "none")
 
-            echo "Redis: $REDIS_HEALTH | API: $API_HEALTH | Worker: $WORKER_HEALTH | Frontend: $FRONTEND_HEALTH"
+            echo "Redis: $REDIS | API: $API | Worker: $WORKER | Frontend: $FRONTEND"
 
-            if [ "$API_HEALTH" = "healthy" ] && \
-               [ "$WORKER_HEALTH" = "healthy" ] && \
-               [ "$FRONTEND_HEALTH" = "healthy" ] && \
-               [ "$REDIS_HEALTH" = "healthy" ]; then
+            if [ "$API" = "healthy" ] && \
+               [ "$WORKER" = "healthy" ] && \
+               [ "$FRONTEND" = "healthy" ] && \
+               [ "$REDIS" = "healthy" ]; then
               echo "All services are healthy!"
+              echo "API_CONTAINER=$API_CONTAINER" >> $GITHUB_ENV
+              echo "WORKER_CONTAINER=$WORKER_CONTAINER" >> $GITHUB_ENV
+              echo "FRONTEND_CONTAINER=$FRONTEND_CONTAINER" >> $GITHUB_ENV
+              echo "REDIS_CONTAINER=$REDIS_CONTAINER" >> $GITHUB_ENV
               break
             fi
 
@@ -357,12 +384,10 @@ jobs:
             docker compose ps
             echo "--- API logs ---"
             docker compose logs api
-            echo "--- API health check logs ---"
-            docker compose ps api
             echo "--- Frontend logs ---"
             docker compose logs frontend
-            echo "--- Frontend health check logs ---"
-            docker compose ps frontend
+            echo "--- Frontend health check ---"
+            docker inspect --format='{{json .State.Health}}' $FRONTEND_CONTAINER 2>/dev/null || echo "container not found"
             echo "--- Redis logs ---"
             docker compose logs redis
             echo "--- Worker logs ---"
@@ -462,15 +487,33 @@ jobs:
 
       - name: Wait for initial stack to be healthy
         run: |
+          echo "Waiting for initial stack to be healthy..."
+
+          PROJECT=$(docker compose ps --format json | python3 -c "
+          import sys, json
+          data = sys.stdin.read().strip()
+          lines = [l for l in data.splitlines() if l.strip()]
+          first = json.loads(lines[0])
+          name = first['Name']
+          parts = name.rsplit('-', 2)
+          print(parts[0])
+          ")
+          echo "Project name: $PROJECT"
+
+          API_CONTAINER="${PROJECT}-api-1"
+          WORKER_CONTAINER="${PROJECT}-worker-1"
+          FRONTEND_CONTAINER="${PROJECT}-frontend-1"
+          REDIS_CONTAINER="${PROJECT}-redis-1"
+
           TIMEOUT=120
           INTERVAL=5
           ELAPSED=0
 
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            API=$(docker compose ps api 2>/dev/null | awk '/api/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
-            WORKER=$(docker compose ps worker 2>/dev/null | awk '/worker/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
-            FRONTEND=$(docker compose ps frontend 2>/dev/null | awk '/frontend/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
-            REDIS=$(docker compose ps redis 2>/dev/null | awk '/redis/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
+            API=$(docker inspect --format='{{.State.Health.Status}}' $API_CONTAINER 2>/dev/null || echo "none")
+            WORKER=$(docker inspect --format='{{.State.Health.Status}}' $WORKER_CONTAINER 2>/dev/null || echo "none")
+            FRONTEND=$(docker inspect --format='{{.State.Health.Status}}' $FRONTEND_CONTAINER 2>/dev/null || echo "none")
+            REDIS=$(docker inspect --format='{{.State.Health.Status}}' $REDIS_CONTAINER 2>/dev/null || echo "none")
 
             echo "Redis: $REDIS | API: $API | Worker: $WORKER | Frontend: $FRONTEND"
 
@@ -479,6 +522,10 @@ jobs:
                [ "$FRONTEND" = "healthy" ] && \
                [ "$REDIS" = "healthy" ]; then
               echo "Initial stack is healthy"
+              echo "API_CONTAINER=$API_CONTAINER" >> $GITHUB_ENV
+              echo "WORKER_CONTAINER=$WORKER_CONTAINER" >> $GITHUB_ENV
+              echo "FRONTEND_CONTAINER=$FRONTEND_CONTAINER" >> $GITHUB_ENV
+              echo "REDIS_CONTAINER=$REDIS_CONTAINER" >> $GITHUB_ENV
               break
             fi
 
@@ -507,23 +554,16 @@ jobs:
             echo "Rolling update: $SERVICE"
             echo "========================================="
 
-            # Build new image for this service
             docker compose build $SERVICE
 
-            # Start new container alongside the old one
-            # --no-deps prevents restarting dependencies
-            # --scale 2 runs old and new simultaneously
             docker compose up -d --no-deps --scale $SERVICE=2 --no-recreate $SERVICE
             sleep 5
 
-            # Get ID of the newest container for this service
             NEW_CONTAINER=$(docker compose ps -q $SERVICE | tail -1)
             echo "New container ID: $NEW_CONTAINER"
 
-            # Poll health check on new container
             while [ $ELAPSED -lt $TIMEOUT ]; do
-              HEALTH=$(docker compose ps $SERVICE 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | tail -1 || echo "unknown")
-
+              HEALTH=$(docker inspect --format='{{.State.Health.Status}}' $NEW_CONTAINER 2>/dev/null || echo "unknown")
               echo "$SERVICE new container health: $HEALTH (${ELAPSED}s)"
 
               if [ "$HEALTH" = "healthy" ]; then
