@@ -92,9 +92,6 @@ jobs:
 
   
   # STAGE 3 — BUILD
-  # Builds all three images, tags with git SHA and latest,
-  # pushes to a local registry running as a service container
-
   build:
     runs-on: ubuntu-latest
     needs: test
@@ -315,10 +312,14 @@ jobs:
       # Build and start the full stack
       - name: Build and start stack
         run: |
-          docker compose up --build -d
-          echo "Stack started, waiting for services to be healthy..."
-          # Give containers a moment to start before we begin polling
+          docker compose up --build -d --no-deps redis
+          sleep 5
+          docker compose up --build -d --no-deps api
           sleep 10
+          docker compose logs api
+          docker inspect --format='{{json .State.Health}}' api
+          docker compose up --build -d --no-deps worker
+          docker compose up --build -d --no-deps frontend
 
       - name: Wait for services to be healthy
         run: |
