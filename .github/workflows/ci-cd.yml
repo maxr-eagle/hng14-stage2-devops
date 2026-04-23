@@ -554,8 +554,18 @@ jobs:
             echo "Rolling update: $SERVICE"
             echo "========================================="
 
+            # Build new image
             docker compose build $SERVICE
 
+            # Show available images so we can see exact image name
+            echo "--- Available images ---"
+            docker images | grep $SERVICE
+
+            # Get the exact image name docker compose built
+            IMAGE_NAME=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep $SERVICE | head -1)
+            echo "Using image: $IMAGE_NAME"
+
+            # Start test container
             TEST_CONTAINER="${SERVICE}-test-$$"
             echo "Starting test container: $TEST_CONTAINER"
 
@@ -566,20 +576,18 @@ jobs:
               -e REDIS_HOST=redis \
               -e REDIS_PORT=6379 \
               -e API_URL=http://api:8000 \
-              $(docker compose config --format json | python3 -c "
-              import sys, json
-              config = json.load(sys.stdin)
-              image = config['services']['$SERVICE'].get('image', 'hng14-stage2-devops-$SERVICE')
-              print(image)
-              " 2>/dev/null || echo "hng14-stage2-devops_${SERVICE}") \
-              2>/dev/null || docker run -d \
-                --name $TEST_CONTAINER \
-                --network hng14-stage2-devops_internal \
-                --env-file .env \
-                -e REDIS_HOST=redis \
-                -e REDIS_PORT=6379 \
-                hng14-stage2-devops-${SERVICE} 2>/dev/null || true
+              $IMAGE_NAME
 
+            echo "Test container started"
+            echo "--- Test container inspect ---"
+            docker inspect $TEST_CONTAINER | python3 -c "
+            import sys, json
+            data = json.load(sys.stdin)[0]
+            print('Status:', data['State']['Status'])
+            print('Health:', data['State'].get('Health', {}).get('Status', 'no healthcheck'))
+            "
+
+            # Wait for test container health
             while [ $ELAPSED -lt $TIMEOUT ]; do
               HEALTH=$(docker inspect \
                 --format='{{.State.Health.Status}}' \
@@ -594,7 +602,10 @@ jobs:
               fi
 
               if [ "$HEALTH" = "unhealthy" ]; then
-                echo "$SERVICE new image is unhealthy — aborting"
+                echo "$SERVICE new image is unhealthy — dumping logs"
+                docker logs $TEST_CONTAINER
+                echo "--- Health check log ---"
+                docker inspect --format='{{json .State.Health}}' $TEST_CONTAINER
                 break
               fi
 
@@ -602,19 +613,24 @@ jobs:
               ELAPSED=$((ELAPSED + INTERVAL))
             done
 
+            # If timed out dump logs
+            if [ "$SUCCESS" = "false" ]; then
+              echo "--- Test container logs ---"
+              docker logs $TEST_CONTAINER
+              echo "--- Health check details ---"
+              docker inspect --format='{{json .State.Health}}' $TEST_CONTAINER
+            fi
+
+            # Always remove test container
             docker stop $TEST_CONTAINER 2>/dev/null || true
             docker rm $TEST_CONTAINER 2>/dev/null || true
 
             if [ "$SUCCESS" = "true" ]; then
               echo "$SERVICE new image passed health check"
-              echo "Replacing $SERVICE container..."
-              # Stop old container and start new one
-              # Brief downtime here is acceptable — true zero downtime
-              # requires a load balancer which is outside task scope
               docker compose up -d --no-deps --force-recreate $SERVICE
               echo "$SERVICE rolling update complete"
             else
-              echo "ERROR: $SERVICE new image failed health check within ${TIMEOUT}s"
+              echo "ERROR: $SERVICE failed health check within ${TIMEOUT}s"
               echo "Aborting — keeping old container running"
               exit 1
             fi
