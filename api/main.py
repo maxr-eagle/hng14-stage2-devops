@@ -21,9 +21,8 @@ def startup():
 
 
 @app.get("/health")
-def health():
-    return {"status": "ok"}
-
+def health_check():
+    return {"status": "healthy"}
 
 @app.post("/jobs")
 def create_job():
