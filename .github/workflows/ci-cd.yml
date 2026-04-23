@@ -317,6 +317,8 @@ jobs:
         run: |
           docker compose up --build -d
           echo "Stack started, waiting for services to be healthy..."
+          # Give containers a moment to start before we begin polling
+          sleep 10
 
       - name: Wait for services to be healthy
         run: |
@@ -346,11 +348,20 @@ jobs:
             ELAPSED=$((ELAPSED + INTERVAL))
           done
 
-          # If we exit the loop without all services healthy, fail
           if [ $ELAPSED -ge $TIMEOUT ]; then
-            echo "Timed out waiting for services to be healthy"
+            echo "========================================="
+            echo "TIMEOUT — dumping diagnostics"
+            echo "========================================="
+            echo "--- docker compose ps ---"
             docker compose ps
-            docker compose logs
+            echo "--- API logs ---"
+            docker compose logs api
+            echo "--- API health check logs ---"
+            docker inspect --format='{{json .State.Health}}' api
+            echo "--- Redis logs ---"
+            docker compose logs redis
+            echo "--- Worker logs ---"
+            docker compose logs worker
             exit 1
           fi
 
