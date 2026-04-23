@@ -75,7 +75,10 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest api/tests -q
+        python -m pytest api/tests -q \
+          --cov=api \
+          --cov-report=xml:api/coverage.xml \
+          --cov-report=term-missing
 
     # Upload coverage report as a pipeline artifact
     # Available for download in the Actions tab for 7 days
