@@ -58,30 +58,30 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: lint
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
 
-      - name: Run tests with coverage
-        working-directory: api
-        run: |
-          python -m pytest tests/ \
-            --cov=. \
-            --cov-report=xml:coverage.xml \
-            --cov-report=term-missing \
-            -v
+    - name: Install dependencies
+      run: |
+        pip install -r api/requirements.txt
+        pip install pytest pytest-cov
 
-      # Upload coverage report as a pipeline artifact
-      # Available for download in the Actions tab for 7 days
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: api/coverage.xml
-          retention-days: 7      
+    - name: Run tests
+      run: |
+        pytest api/tests -q
+
+    # Upload coverage report as a pipeline artifact
+    # Available for download in the Actions tab for 7 days
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: api/coverage.xml
+        retention-days: 7      
