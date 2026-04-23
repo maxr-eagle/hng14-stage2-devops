@@ -330,11 +330,10 @@ jobs:
           ELAPSED=0
 
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            # Get health status of all services
-            API_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' api 2>/dev/null || echo "not_found")
-            WORKER_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' worker 2>/dev/null || echo "not_found")
-            FRONTEND_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' frontend 2>/dev/null || echo "not_found")
-            REDIS_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' redis 2>/dev/null || echo "not_found")
+            API_HEALTH=$(docker compose ps -q api | xargs -r docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "not_found")
+            WORKER_HEALTH=$(docker compose ps -q worker | xargs -r docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "not_found")
+            FRONTEND_HEALTH=$(docker compose ps -q frontend | xargs -r docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "not_found")
+            REDIS_HEALTH=$(docker compose ps -q redis | xargs -r docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "not_found")
 
             echo "Redis: $REDIS_HEALTH | API: $API_HEALTH | Worker: $WORKER_HEALTH | Frontend: $FRONTEND_HEALTH"
 
@@ -468,10 +467,10 @@ jobs:
           ELAPSED=0
 
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            API=$(docker inspect --format='{{.State.Health.Status}}' api 2>/dev/null || echo "none")
-            WORKER=$(docker inspect --format='{{.State.Health.Status}}' worker 2>/dev/null || echo "none")
-            FRONTEND=$(docker inspect --format='{{.State.Health.Status}}' frontend 2>/dev/null || echo "none")
-            REDIS=$(docker inspect --format='{{.State.Health.Status}}' redis 2>/dev/null || echo "none")
+            API=$(docker compose ps -q api | xargs -r docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
+            WORKER=$(docker compose ps -q worker | xargs -r docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
+            FRONTEND=$(docker compose ps -q frontend | xargs -r docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
+            REDIS=$(docker compose ps -q redis | xargs -r docker inspect --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
 
             echo "Redis: $REDIS | API: $API | Worker: $WORKER | Frontend: $FRONTEND"
 
