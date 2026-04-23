@@ -326,8 +326,7 @@ jobs:
         run: |
           echo "Waiting for all services to be healthy..."
 
-          PROJECT=$(docker compose ps --format json | python3 -c "
-          import sys, json
+          PROJECT=$(docker compose ps --format json | python3 -c "import sys, json
           data = sys.stdin.read().strip()
           lines = [l for l in data.splitlines() if l.strip()]
           first = json.loads(lines[0])
@@ -489,8 +488,7 @@ jobs:
         run: |
           echo "Waiting for initial stack to be healthy..."
 
-          PROJECT=$(docker compose ps --format json | python3 -c "
-          import sys, json
+          PROJECT=$(docker compose ps --format json | python3 -c "import sys, json
           data = sys.stdin.read().strip()
           lines = [l for l in data.splitlines() if l.strip()]
           first = json.loads(lines[0])
@@ -580,8 +578,7 @@ jobs:
 
             echo "Test container started"
             echo "--- Test container inspect ---"
-            docker inspect $TEST_CONTAINER | python3 -c "
-            import sys, json
+            docker inspect $TEST_CONTAINER | python3 -c "import sys, json
             data = json.load(sys.stdin)[0]
             print('Status:', data['State']['Status'])
             print('Health:', data['State'].get('Health', {}).get('Status', 'no healthcheck'))
