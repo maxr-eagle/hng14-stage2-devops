@@ -8,8 +8,9 @@ const API_URL = process.env.API_URL || "http://api:8000";
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'views')));
 
+
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+  res.status(200).json({ status: 'healthy' });
 });
 
 app.post('/submit', async (req, res) => {
