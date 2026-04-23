@@ -556,24 +556,45 @@ jobs:
 
             docker compose build $SERVICE
 
-            docker compose up -d --no-deps --scale $SERVICE=2 --no-recreate $SERVICE
-            sleep 5
+            TEST_CONTAINER="${SERVICE}-test-$$"
+            echo "Starting test container: $TEST_CONTAINER"
 
-            NEW_CONTAINER=$(docker compose ps -q $SERVICE | tail -1)
-            echo "New container ID: $NEW_CONTAINER"
+            docker run -d \
+              --name $TEST_CONTAINER \
+              --network hng14-stage2-devops_internal \
+              --env-file .env \
+              -e REDIS_HOST=redis \
+              -e REDIS_PORT=6379 \
+              -e API_URL=http://api:8000 \
+              $(docker compose config --format json | python3 -c "
+              import sys, json
+              config = json.load(sys.stdin)
+              image = config['services']['$SERVICE'].get('image', 'hng14-stage2-devops-$SERVICE')
+              print(image)
+              " 2>/dev/null || echo "hng14-stage2-devops_${SERVICE}") \
+              2>/dev/null || docker run -d \
+                --name $TEST_CONTAINER \
+                --network hng14-stage2-devops_internal \
+                --env-file .env \
+                -e REDIS_HOST=redis \
+                -e REDIS_PORT=6379 \
+                hng14-stage2-devops-${SERVICE} 2>/dev/null || true
 
             while [ $ELAPSED -lt $TIMEOUT ]; do
-              HEALTH=$(docker inspect --format='{{.State.Health.Status}}' $NEW_CONTAINER 2>/dev/null || echo "unknown")
-              echo "$SERVICE new container health: $HEALTH (${ELAPSED}s)"
+              HEALTH=$(docker inspect \
+                --format='{{.State.Health.Status}}' \
+                $TEST_CONTAINER 2>/dev/null || echo "unknown")
+
+              echo "$SERVICE test container health: $HEALTH (${ELAPSED}s)"
 
               if [ "$HEALTH" = "healthy" ]; then
-                echo "$SERVICE new container is healthy"
                 SUCCESS=true
+                echo "$SERVICE new image is healthy"
                 break
               fi
 
               if [ "$HEALTH" = "unhealthy" ]; then
-                echo "$SERVICE new container is unhealthy — aborting"
+                echo "$SERVICE new image is unhealthy — aborting"
                 break
               fi
 
@@ -581,24 +602,24 @@ jobs:
               ELAPSED=$((ELAPSED + INTERVAL))
             done
 
+            docker stop $TEST_CONTAINER 2>/dev/null || true
+            docker rm $TEST_CONTAINER 2>/dev/null || true
+
             if [ "$SUCCESS" = "true" ]; then
-              echo "$SERVICE rolling update successful"
-              # Scale back to 1 — Docker removes the oldest container
-              docker compose up -d --no-deps --scale $SERVICE=1 $SERVICE
-              echo "$SERVICE old container removed"
+              echo "$SERVICE new image passed health check"
+              echo "Replacing $SERVICE container..."
+              # Stop old container and start new one
+              # Brief downtime here is acceptable — true zero downtime
+              # requires a load balancer which is outside task scope
+              docker compose up -d --no-deps --force-recreate $SERVICE
+              echo "$SERVICE rolling update complete"
             else
-              echo "ERROR: $SERVICE failed health check within ${TIMEOUT}s"
+              echo "ERROR: $SERVICE new image failed health check within ${TIMEOUT}s"
               echo "Aborting — keeping old container running"
-              # Scale back to 1 — Docker removes the newest (failed) container
-              docker compose stop $NEW_CONTAINER
-              docker rm $NEW_CONTAINER
-              echo "$SERVICE old container preserved"
               exit 1
             fi
           }
 
-          # Update each service in order
-          # Redis is skipped — it has persistent data
           rolling_update api
           rolling_update worker
           rolling_update frontend
