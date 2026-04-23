@@ -24,6 +24,7 @@ def startup():
 def health_check():
     return {"status": "healthy"}
 
+
 @app.post("/jobs")
 def create_job():
     job_id = str(uuid.uuid4())
