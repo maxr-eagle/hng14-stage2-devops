@@ -584,7 +584,6 @@ jobs:
             print('Health:', data['State'].get('Health', {}).get('Status', 'no healthcheck'))
             "
 
-            # Wait for test container health
             while [ $ELAPSED -lt $TIMEOUT ]; do
               HEALTH=$(docker inspect \
                 --format='{{.State.Health.Status}}' \
