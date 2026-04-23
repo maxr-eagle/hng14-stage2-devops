@@ -330,10 +330,10 @@ jobs:
           ELAPSED=0
 
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            API=$(docker compose ps api 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | head -1 || echo "none")
-            WORKER=$(docker compose ps worker 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | head -1 || echo "none")
-            FRONTEND=$(docker compose ps frontend 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | head -1 || echo "none")
-            REDIS=$(docker compose ps redis 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | head -1 || echo "none")
+            API=$(docker compose ps api 2>/dev/null | awk '/api/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
+            WORKER=$(docker compose ps worker 2>/dev/null | awk '/worker/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
+            FRONTEND=$(docker compose ps frontend 2>/dev/null | awk '/frontend/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
+            REDIS=$(docker compose ps redis 2>/dev/null | awk '/redis/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
 
             echo "Redis: $REDIS_HEALTH | API: $API_HEALTH | Worker: $WORKER_HEALTH | Frontend: $FRONTEND_HEALTH"
 
@@ -467,10 +467,10 @@ jobs:
           ELAPSED=0
 
           while [ $ELAPSED -lt $TIMEOUT ]; do
-            API=$(docker compose ps api 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | head -1 || echo "none")
-            WORKER=$(docker compose ps worker 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | head -1 || echo "none")
-            FRONTEND=$(docker compose ps frontend 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | head -1 || echo "none")
-            REDIS=$(docker compose ps redis 2>/dev/null | grep -oE '(healthy|unhealthy|starting)' | head -1 || echo "none")
+            API=$(docker compose ps api 2>/dev/null | awk '/api/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
+            WORKER=$(docker compose ps worker 2>/dev/null | awk '/worker/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
+            FRONTEND=$(docker compose ps frontend 2>/dev/null | awk '/frontend/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
+            REDIS=$(docker compose ps redis 2>/dev/null | awk '/redis/{print $0}' | grep -oE 'healthy|unhealthy|starting' | head -1 || echo "none")
 
             echo "Redis: $REDIS | API: $API | Worker: $WORKER | Frontend: $FRONTEND"
 
