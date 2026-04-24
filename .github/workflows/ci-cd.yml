@@ -563,8 +563,11 @@ jobs:
               $IMAGE_NAME
 
             echo "Test container started"
-            echo "--- Test container inspect ---"
-            docker inspect $TEST_CONTAINER | python3 -c "import sys,json; d=json.load(sys.stdin)[0]; print('Status:',d['State']['Status'],'Health:',d['State'].get('Health',{}).get('Status','no healthcheck'))"
+            sleep 3
+            echo "--- Early container logs ---"
+            docker logs $TEST_CONTAINER 2>&1 || echo "no logs yet"
+            echo "--- Container status ---"
+            docker inspect --format='Status={{.State.Status}} Health={{.State.Health.Status}}' $TEST_CONTAINER 2>/dev/null || echo "container not found"
             
             while [ $ELAPSED -lt $TIMEOUT ]; do
               HEALTH=$(docker inspect \
@@ -591,12 +594,15 @@ jobs:
               ELAPSED=$((ELAPSED + INTERVAL))
             done
 
-            # If timed out dump logs
             if [ "$SUCCESS" = "false" ]; then
               echo "--- Test container logs ---"
-              docker logs $TEST_CONTAINER
+              docker logs $TEST_CONTAINER 2>&1 || echo "no logs available"
+              echo "--- Test container status ---"
+              docker inspect --format='Status={{.State.Status}} Health={{.State.Health.Status}}' $TEST_CONTAINER 2>/dev/null || echo "container not found"
               echo "--- Health check details ---"
-              docker inspect --format='{{json .State.Health}}' $TEST_CONTAINER
+              docker inspect --format='{{json .State.Health}}' $TEST_CONTAINER 2>/dev/null || echo "no health data"
+              echo "--- Network check ---"
+              docker inspect --format='{{json .NetworkSettings.Networks}}' $TEST_CONTAINER 2>/dev/null || echo "no network data"
             fi
 
             # Always remove test container
