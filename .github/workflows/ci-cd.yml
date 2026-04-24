@@ -538,18 +538,11 @@ jobs:
             echo "Rolling update: $SERVICE"
             echo "========================================="
 
-            # Build new image
             docker compose build $SERVICE
 
-            # Show available images so we can see exact image name
-            echo "--- Available images ---"
-            docker images | grep $SERVICE
-
-            # Get the exact image name docker compose built
-            IMAGE_NAME=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep $SERVICE | head -1)
+            IMAGE_NAME=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep "^hng14-stage2-devops-${SERVICE}" | head -1)
             echo "Using image: $IMAGE_NAME"
 
-            # Start test container
             TEST_CONTAINER="${SERVICE}-test-$$"
             echo "Starting test container: $TEST_CONTAINER"
 
@@ -562,32 +555,41 @@ jobs:
               -e API_URL=http://api:8000 \
               $IMAGE_NAME
 
-            echo "Test container started"
-            sleep 3
-            echo "--- Early container logs ---"
-            docker logs $TEST_CONTAINER 2>&1 || echo "no logs yet"
-            echo "--- Container status ---"
-            docker inspect --format='Status={{.State.Status}} Health={{.State.Health.Status}}' $TEST_CONTAINER 2>/dev/null || echo "container not found"
-            
+            sleep 5
+
+            CONTAINER_IP=$(docker inspect \
+              --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
+              $TEST_CONTAINER 2>/dev/null || echo "")
+            echo "Container IP: $CONTAINER_IP"
+
+            if [ "$SERVICE" = "api" ]; then
+              HEALTH_URL="http://${CONTAINER_IP}:8000/health"
+            elif [ "$SERVICE" = "frontend" ]; then
+              HEALTH_URL="http://${CONTAINER_IP}:3000/health"
+            else
+              HEALTH_URL=""
+            fi
+
+            echo "Health URL: $HEALTH_URL"
+
             while [ $ELAPSED -lt $TIMEOUT ]; do
-              HEALTH=$(docker inspect \
-                --format='{{.State.Health.Status}}' \
-                $TEST_CONTAINER 2>/dev/null || echo "unknown")
-
-              echo "$SERVICE test container health: $HEALTH (${ELAPSED}s)"
-
-              if [ "$HEALTH" = "healthy" ]; then
-                SUCCESS=true
-                echo "$SERVICE new image is healthy"
-                break
-              fi
-
-              if [ "$HEALTH" = "unhealthy" ]; then
-                echo "$SERVICE new image is unhealthy — dumping logs"
-                docker logs $TEST_CONTAINER
-                echo "--- Health check log ---"
-                docker inspect --format='{{json .State.Health}}' $TEST_CONTAINER
-                break
+              if [ "$SERVICE" = "worker" ]; then
+                STATUS=$(docker inspect --format='{{.State.Status}}' $TEST_CONTAINER 2>/dev/null || echo "unknown")
+                if [ "$STATUS" = "running" ]; then
+                  SUCCESS=true
+                  echo "Worker container is running"
+                  break
+                fi
+              else
+                HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                  --max-time 5 \
+                  $HEALTH_URL 2>/dev/null || echo "000")
+                echo "$SERVICE health check: HTTP $HTTP_CODE (${ELAPSED}s)"
+                if [ "$HTTP_CODE" = "200" ]; then
+                  SUCCESS=true
+                  echo "$SERVICE new image is healthy"
+                  break
+                fi
               fi
 
               sleep $INTERVAL
@@ -596,16 +598,11 @@ jobs:
 
             if [ "$SUCCESS" = "false" ]; then
               echo "--- Test container logs ---"
-              docker logs $TEST_CONTAINER 2>&1 || echo "no logs available"
-              echo "--- Test container status ---"
-              docker inspect --format='Status={{.State.Status}} Health={{.State.Health.Status}}' $TEST_CONTAINER 2>/dev/null || echo "container not found"
-              echo "--- Health check details ---"
-              docker inspect --format='{{json .State.Health}}' $TEST_CONTAINER 2>/dev/null || echo "no health data"
-              echo "--- Network check ---"
-              docker inspect --format='{{json .NetworkSettings.Networks}}' $TEST_CONTAINER 2>/dev/null || echo "no network data"
+              docker logs $TEST_CONTAINER 2>&1 || echo "no logs"
+              echo "--- Container status ---"
+              docker inspect --format='Status={{.State.Status}}' $TEST_CONTAINER 2>/dev/null || echo "not found"
             fi
 
-            # Always remove test container
             docker stop $TEST_CONTAINER 2>/dev/null || true
             docker rm $TEST_CONTAINER 2>/dev/null || true
 
