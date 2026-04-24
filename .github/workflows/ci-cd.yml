@@ -326,14 +326,7 @@ jobs:
         run: |
           echo "Waiting for all services to be healthy..."
 
-          PROJECT=$(docker compose ps --format json | python3 -c "import sys, json
-          data = sys.stdin.read().strip()
-          lines = [l for l in data.splitlines() if l.strip()]
-          first = json.loads(lines[0])
-          name = first['Name']
-          parts = name.rsplit('-', 2)
-          print(parts[0])
-          ")
+          PROJECT=$(docker compose ps --format json | python3 -c "import sys,json; lines=[l for l in sys.stdin.read().strip().splitlines() if l.strip()]; name=json.loads(lines[0])['Name']; print(name.rsplit('-',2)[0])")
           echo "Project name: $PROJECT"
 
           API_CONTAINER="${PROJECT}-api-1"
@@ -488,14 +481,7 @@ jobs:
         run: |
           echo "Waiting for initial stack to be healthy..."
 
-          PROJECT=$(docker compose ps --format json | python3 -c "import sys, json
-          data = sys.stdin.read().strip()
-          lines = [l for l in data.splitlines() if l.strip()]
-          first = json.loads(lines[0])
-          name = first['Name']
-          parts = name.rsplit('-', 2)
-          print(parts[0])
-          ")
+          PROJECT=$(docker compose ps --format json | python3 -c "import sys,json; lines=[l for l in sys.stdin.read().strip().splitlines() if l.strip()]; name=json.loads(lines[0])['Name']; print(name.rsplit('-',2)[0])")
           echo "Project name: $PROJECT"
 
           API_CONTAINER="${PROJECT}-api-1"
@@ -578,7 +564,7 @@ jobs:
 
             echo "Test container started"
             echo "--- Test container inspect ---"
-            docker inspect $TEST_CONTAINER | python3 -c "import sys, json data = json.load(sys.stdin)[0] print('Status:', data['State']['Status']) print('Health:', data['State'].get('Health', {}).get('Status', 'no healthcheck'))"
+            docker inspect $TEST_CONTAINER | python3 -c "import sys,json; d=json.load(sys.stdin)[0]; print('Status:',d['State']['Status'],'Health:',d['State'].get('Health',{}).get('Status','no healthcheck'))"
             
             while [ $ELAPSED -lt $TIMEOUT ]; do
               HEALTH=$(docker inspect \
