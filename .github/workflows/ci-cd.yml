@@ -578,12 +578,8 @@ jobs:
 
             echo "Test container started"
             echo "--- Test container inspect ---"
-            docker inspect $TEST_CONTAINER | python3 -c "import sys, json
-            data = json.load(sys.stdin)[0]
-            print('Status:', data['State']['Status'])
-            print('Health:', data['State'].get('Health', {}).get('Status', 'no healthcheck'))
-            "
-
+            docker inspect $TEST_CONTAINER | python3 -c "import sys, json data = json.load(sys.stdin)[0] print('Status:', data['State']['Status']) print('Health:', data['State'].get('Health', {}).get('Status', 'no healthcheck'))"
+            
             while [ $ELAPSED -lt $TIMEOUT ]; do
               HEALTH=$(docker inspect \
                 --format='{{.State.Health.Status}}' \
